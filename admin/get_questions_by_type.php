@@ -15,7 +15,7 @@ if ($subject_id > 0) {
                                FROM questions 
                                WHERE subject_id = ? 
                                GROUP BY question_type 
-                               ORDER BY question_type");
+                               ORDER BY FIELD(question_type, '单选题', '多选题', '判断题', '填空题', '名词解释', '简答题', '实操论述题') = 0, FIELD(question_type, '单选题', '多选题', '判断题', '填空题', '名词解释', '简答题', '实操论述题')");
         $stmt->execute([$subject_id]);
         $type_groups = $stmt->fetchAll();
         
