@@ -1510,19 +1510,35 @@ foreach ($questions_by_type as $type => $type_questions) {
             <span>剩余时间：<span id="time-display"></span></span>
         </div>
         <h3>题目导航</h3>
-        <div class="nav-question-list">
+        <div class="nav-question-list" style="display: block; padding: 12px 10px;">
             <?php 
-            foreach ($ordered_questions as $nav_index => $question): 
-                $is_answered = in_array($question['id'], $answered_question_ids);
+            $nav_global_index = 0;
+            foreach ($questions_by_type as $type => $type_questions): 
+                if (empty($type_questions)) continue;
             ?>
-                <a href="#question-<?php echo $question['id']; ?>" 
-                   class="nav-question-item <?php echo $is_answered ? 'answered' : ''; ?>" 
-                   data-question-id="<?php echo $question['id']; ?>"
-                   data-question-score="<?php echo $question['score']; ?>"
-                   id="nav-question-<?php echo $question['id']; ?>"
-                   title="第 <?php echo $nav_index + 1; ?> 题（<?php echo $question['score']; ?>分）">
-                    <?php echo $nav_index + 1; ?>
-                </a>
+                <div class="nav-type-group" style="margin-bottom: 15px;">
+                    <div style="font-size: 13px; font-weight: bold; color: #667eea; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #e0e0e0;">
+                        <?php echo escape($type); ?>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <?php 
+                        foreach ($type_questions as $question): 
+                            $is_answered = in_array($question['id'], $answered_question_ids);
+                        ?>
+                            <a href="#question-<?php echo $question['id']; ?>" 
+                               class="nav-question-item <?php echo $is_answered ? 'answered' : ''; ?>" 
+                               data-question-id="<?php echo $question['id']; ?>"
+                               data-question-score="<?php echo $question['score']; ?>"
+                               id="nav-question-<?php echo $question['id']; ?>"
+                               title="<?php echo escape($type); ?> - 第 <?php echo $nav_global_index + 1; ?> 题（<?php echo $question['score']; ?>分）">
+                                <?php echo $nav_global_index + 1; ?>
+                            </a>
+                        <?php 
+                            $nav_global_index++;
+                        endforeach; 
+                        ?>
+                    </div>
+                </div>
             <?php endforeach; ?>
         </div>
         <div style="padding: 15px; border-top: 2px solid #ddd; margin-top: 10px; margin-bottom: 0; position: sticky; bottom: 50px; background: white; z-index: 10;">
