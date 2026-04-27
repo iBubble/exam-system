@@ -23,6 +23,13 @@ if (!$paper) {
     header('Location: exam_list.php');
     exit;
 }
+
+// 检查学生是否有权限访问该试卷
+$student_class = $_SESSION['student_class'] ?? null;
+if (!checkStudentPaperAccess($pdo, $paper_id, $student_class)) {
+    header('Location: exam_list.php?msg=paper_inactive&reason=' . urlencode('您所在的班级无权参加此考试'));
+    exit;
+}
 $paperState = getPaperActiveState($paper);
 if (!$paperState['active']) {
     $reason = urlencode($paperState['reason'] ?? '');
@@ -942,7 +949,7 @@ foreach ($questions_by_type as $type => $type_questions) {
     </script>
     <style>
         body {
-            padding-left: 220px; /* 为左侧导航栏留出空间 */
+            padding-left: 260px; /* 为左侧导航栏留出空间 */
         }
         /* 确保header样式与records.php一致 */
         .main-header {
@@ -1090,7 +1097,7 @@ foreach ($questions_by_type as $type => $type_questions) {
             position: fixed;
             left: 0;
             top: 0;
-            width: 200px;
+            width: 240px;
             height: 100vh;
             background: white;
             border-right: 2px solid #e0e0e0;

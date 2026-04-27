@@ -207,6 +207,22 @@ function getPaperActiveState(array $paper): array {
     return ['active' => true, 'reason' => ''];
 }
 
+// 检查学生是否有权限访问某张试卷
+function checkStudentPaperAccess(PDO $pdo, int $paper_id, ?string $student_class): bool {
+    if (!empty($student_class)) {
+        $stmt = $pdo->prepare("SELECT 1 FROM papers p 
+                               LEFT JOIN paper_classes pc ON p.id = pc.paper_id 
+                               WHERE p.id = ? AND (pc.class = ? OR pc.paper_id IS NULL) LIMIT 1");
+        $stmt->execute([$paper_id, $student_class]);
+    } else {
+        $stmt = $pdo->prepare("SELECT 1 FROM papers p 
+                               LEFT JOIN paper_classes pc ON p.id = pc.paper_id 
+                               WHERE p.id = ? AND pc.paper_id IS NULL LIMIT 1");
+        $stmt->execute([$paper_id]);
+    }
+    return (bool)$stmt->fetch();
+}
+
 // 获取当前可用科目ID列表（存在开启中的试卷）
 function getActiveSubjectIds(PDO $pdo): array {
     ensurePaperScheduleColumns($pdo);

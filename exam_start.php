@@ -24,6 +24,13 @@ if (!$paper) {
     exit;
 }
 
+// 检查学生是否有权限访问该试卷
+$student_class = $_SESSION['student_class'] ?? null;
+if (!checkStudentPaperAccess($pdo, $paper_id, $student_class)) {
+    header('Location: exam_list.php?msg=paper_inactive&reason=' . urlencode('您所在的班级无权参加此考试'));
+    exit;
+}
+
 $state = getPaperActiveState($paper);
 if (!$state['active']) {
     $reason = urlencode($state['reason'] ?? '');
