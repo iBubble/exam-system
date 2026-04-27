@@ -1,0 +1,7 @@
+vendor/
+uploads/
+docs/*.xls
+docs/*.xlsx
+docs/*.csv
+*.log
+.DS_Store

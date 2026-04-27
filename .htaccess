@@ -1,0 +1,21 @@
+# Exam项目安全配置
+
+# 禁止访问敏感文件
+<FilesMatch "\.(ini|log|sql|md|sh)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问隐藏文件
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止目录浏览
+Options -Indexes
+
+# 启用HTTPS重定向（如果需要，取消注释）
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
