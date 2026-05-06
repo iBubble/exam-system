@@ -345,29 +345,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             exit;
         }
         
-        $answers = $_POST['answers'] ?? [];
+        $submitted_answers = $_POST['answers'] ?? [];
+        
+        // 获取本场考试的所有题目，确保即使未作答也会记录在 answer_records 中，从而在结果页完整显示
+        $stmt = $pdo->prepare("SELECT q.*, eq.score as paper_question_score 
+                               FROM questions q 
+                               JOIN exam_questions eq ON q.id = eq.question_id 
+                               WHERE eq.exam_record_id = ?
+                               ORDER BY eq.order_num ASC, eq.id ASC");
+        $stmt->execute([$exam_record_id]);
+        $all_exam_questions = $stmt->fetchAll();
         
         // 计算得分
         $total_score = 0;
         $correct_count = 0;
         
-        foreach ($answers as $question_id => $student_answer) {
-            $question_id = intval($question_id);
-            $student_answer = trim($student_answer);
+        foreach ($all_exam_questions as $question) {
+            $question_id = intval($question['id']);
+            // 获取学生提交的答案，如果未作答则为空字符串
+            $student_answer = isset($submitted_answers[$question_id]) ? (is_array($submitted_answers[$question_id]) ? implode(',', $submitted_answers[$question_id]) : trim($submitted_answers[$question_id])) : '';
             
-            // 获取题目信息（从exam_questions表获取）
-            $stmt = $pdo->prepare("SELECT q.*, eq.score FROM questions q 
-                                   JOIN exam_questions eq ON q.id = eq.question_id 
-                                   WHERE q.id = ? AND eq.exam_record_id = ?");
-            $stmt->execute([$question_id, $exam_record_id]);
-            $question = $stmt->fetch();
+            $correct_answer = trim($question['correct_answer']);
+            $student_answer_processed = trim($student_answer);
+            $question_type = $question['question_type'];
+            $max_score = intval($question['paper_question_score'] ?? 10);
             
-            if ($question) {
-                $correct_answer = trim($question['correct_answer']);
-                $student_answer_processed = trim($student_answer);
-                $question_type = $question['question_type'];
-                $max_score = intval($question['score'] ?? 10);
-                
+            if ($student_answer_processed === '') {
+                // 未作答
+                $is_correct = 0;
+                $score = 0;
+            } else {
                 // 判断是否是主观题（名词解释、实操论述题、填空题也使用相似度评分）
                 $subjective_types = ['名词解释', '简答题', '实操论述题', '填空题'];
                 
@@ -393,29 +400,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     $is_correct = ($correct_answer_normalized == $student_answer_normalized) ? 1 : 0;
                     $score = $is_correct ? $max_score : 0;
                 }
-                
-                if ($is_correct) {
-                    $correct_count++;
-                }
-                
-                $total_score += $score;
-                
-                // 保存或更新答案
-                $stmt = $pdo->prepare("INSERT INTO answer_records (exam_record_id, question_id, student_answer, is_correct, score) 
-                                       VALUES (?, ?, ?, ?, ?)
-                                       ON DUPLICATE KEY UPDATE student_answer = ?, is_correct = ?, score = ?");
-                $stmt->execute([
-                    $exam_record_id, $question_id, $student_answer, $is_correct, $score,
-                    $student_answer, $is_correct, $score
-                ]);
-                
-                // 如果是错题（得分低于满分的60%），添加到错题本
-                if ($score < ($max_score * 0.6)) {
-                    $stmt = $pdo->prepare("INSERT INTO wrong_questions (student_id, question_id, wrong_times, last_wrong_time) 
-                                           VALUES (?, ?, 1, NOW())
-                                           ON DUPLICATE KEY UPDATE wrong_times = wrong_times + 1, last_wrong_time = NOW()");
-                    $stmt->execute([$_SESSION['student_id'], $question_id]);
-                }
+            }
+            
+            if ($is_correct) {
+                $correct_count++;
+            }
+            
+            $total_score += $score;
+            
+            // 保存或更新答案
+            $stmt = $pdo->prepare("INSERT INTO answer_records (exam_record_id, question_id, student_answer, is_correct, score) 
+                                   VALUES (?, ?, ?, ?, ?)
+                                   ON DUPLICATE KEY UPDATE student_answer = ?, is_correct = ?, score = ?");
+            $stmt->execute([
+                $exam_record_id, $question_id, $student_answer, $is_correct, $score,
+                $student_answer, $is_correct, $score
+            ]);
+            
+            // 如果是错题（得分低于满分的60%），添加到错题本
+            if ($score < ($max_score * 0.6)) {
+                $stmt = $pdo->prepare("INSERT INTO wrong_questions (student_id, question_id, wrong_times, last_wrong_time) 
+                                       VALUES (?, ?, 1, NOW())
+                                       ON DUPLICATE KEY UPDATE wrong_times = wrong_times + 1, last_wrong_time = NOW()");
+                $stmt->execute([$_SESSION['student_id'], $question_id]);
             }
         }
         
