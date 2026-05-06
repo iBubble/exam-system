@@ -6,7 +6,7 @@ checkStudentLogin();
 ensurePaperScheduleColumns($pdo);
 
 // 获取该学生的所有考试记录
-$stmt = $pdo->prepare("SELECT er.*, p.title as paper_title, p.start_time, p.end_time, p.is_paused, s.name as subject_name 
+$stmt = $pdo->prepare("SELECT er.*, er.end_time as completion_time, p.title as paper_title, p.start_time, p.end_time, p.is_paused, s.name as subject_name 
                        FROM exam_records er 
                        JOIN papers p ON er.paper_id = p.id 
                        LEFT JOIN subjects s ON p.subject_id = s.id 
@@ -312,7 +312,7 @@ foreach ($stmtSeen->fetchAll() as $row) {
                                     </td>
                                     <td style="color: #7f8c8d; font-size: 13px;">
                                         <?php 
-                                        $completion_time = !empty($record['end_time']) ? $record['end_time'] : ($record['created_at'] ?? '');
+                                        $completion_time = !empty($record['completion_time']) ? $record['completion_time'] : ($record['created_at'] ?? '');
                                         if (!empty($completion_time)) {
                                             echo date('Y-m-d H:i:s', strtotime($completion_time));
                                         } else {
