@@ -22,9 +22,9 @@ function startStudentSession() {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
     ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);
-    // 设置session超时时间为60分钟（3600秒）
-    ini_set('session.gc_maxlifetime', 3600);
-    ini_set('session.cookie_lifetime', 3600);
+    // 设置session超时时间为100分钟（6000秒）
+    ini_set('session.gc_maxlifetime', 6000);
+    ini_set('session.cookie_lifetime', 6000);
     session_start();
 }
 
@@ -49,9 +49,9 @@ function startAdminSession() {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
     ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);
-    // 设置session超时时间为60分钟（3600秒）
-    ini_set('session.gc_maxlifetime', 3600);
-    ini_set('session.cookie_lifetime', 3600);
+    // 设置session超时时间为100分钟（6000秒）
+    ini_set('session.gc_maxlifetime', 6000);
+    ini_set('session.cookie_lifetime', 6000);
     session_start();
 }
 

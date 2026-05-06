@@ -34,12 +34,13 @@ foreach ($stmtTotal->fetchAll() as $row) {
         $total_map[$sid] = (int)$row['total_count'];
     }
 }
-// 已刷到的不同题（该学生，已完成考试）
+// 已刷到的不同题（该学生，已完成考试，只统计当前题库中存在的属于该科目的题目）
 $stmtSeen = $pdo->prepare("
     SELECT p.subject_id, sub.name AS subject_name, COUNT(DISTINCT eq.question_id) AS seen_count
     FROM exam_records er
     JOIN exam_questions eq ON eq.exam_record_id = er.id
     JOIN papers p ON er.paper_id = p.id
+    JOIN questions q ON eq.question_id = q.id AND q.subject_id = p.subject_id
     LEFT JOIN subjects sub ON p.subject_id = sub.id
     WHERE er.student_id = ? AND er.status = 'completed'
     GROUP BY p.subject_id, sub.name

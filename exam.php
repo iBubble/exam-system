@@ -66,16 +66,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         exit;
     }
     
-    // 获取该学生在本试卷中已经做过的题目（用于优先抽取没见过的题，增加题目覆盖率）
+    $subject_id = $paper['subject_id'];
+    
+    // 获取该科目下各题型的总题数
+    $stmtTotalByType = $pdo->prepare("SELECT question_type, COUNT(*) as total FROM questions WHERE subject_id = ? GROUP BY question_type");
+    $stmtTotalByType->execute([$subject_id]);
+    $total_by_type = $stmtTotalByType->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // 获取该学生在该科目下已经完成的考试次数（用于控制覆盖率进度）
+    $stmtExamCount = $pdo->prepare("SELECT COUNT(*) FROM exam_records er JOIN papers p ON er.paper_id = p.id WHERE er.student_id = ? AND p.subject_id = ? AND er.status = 'completed'");
+    $stmtExamCount->execute([$_SESSION['student_id'], $subject_id]);
+    $completed_exam_count = (int)$stmtExamCount->fetchColumn();
+
+    // 获取该学生在整个科目中已经刷到过的题目（增加题目覆盖率）
     $seen_questions_by_type = [];
     $stmt = $pdo->prepare("
-        SELECT q.id, q.question_type 
+        SELECT DISTINCT q.id, q.question_type 
         FROM exam_questions eq
         JOIN exam_records er ON eq.exam_record_id = er.id
         JOIN questions q ON q.id = eq.question_id
-        WHERE er.student_id = ? AND er.paper_id = ?
+        WHERE er.student_id = ? AND q.subject_id = ?
     ");
-    $stmt->execute([$_SESSION['student_id'], $paper_id]);
+    $stmt->execute([$_SESSION['student_id'], $subject_id]);
     while ($row = $stmt->fetch()) {
         $type = $row['question_type'];
         if (!isset($seen_questions_by_type[$type])) {
@@ -129,10 +141,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     }
                 }
                 
-                // 优先从未做过的题目中选择，不足时补充已做过的
+                // 根据刷题次数限制新题比例，实现覆盖率梯度增长
+                // 刷题两次仅能覆盖不低于60%不高于80%覆盖率，三次以上才能实现100%覆盖率
+                $allowed_unseen_count = count($unseen_questions);
+                if ($completed_exam_count == 1) {
+                    // 第二次刷题：目标总覆盖率约70% (在60%-80%范围内)
+                    $total_in_type = $total_by_type[$type] ?? 0;
+                    if ($total_in_type > 0) {
+                        $target_total_seen = floor($total_in_type * 0.7); // 目标累计看到70%的题目
+                        $current_seen = count($seen_ids);
+                        // 本次允许抽取的新题数量 = 目标累计数 - 已经看过的数
+                        $allowed_unseen_count = max(0, $target_total_seen - $current_seen);
+                    }
+                }
+                
+                // 优先从未做过的题目中选择（受限额控制），不足时补充已做过的
                 shuffle($unseen_questions);
                 shuffle($seen_questions);
-                $type_questions = array_slice($unseen_questions, 0, $count);
+                
+                // 抽取新题
+                $unseen_to_take = min($allowed_unseen_count, $count, count($unseen_questions));
+                $type_questions = array_slice($unseen_questions, 0, $unseen_to_take);
+                
+                // 补充旧题以达到题目总数要求
                 if (count($type_questions) < $count) {
                     $needed = $count - count($type_questions);
                     $type_questions = array_merge($type_questions, array_slice($seen_questions, 0, $needed));
@@ -458,6 +489,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $exam_record_id = $_SESSION['exam_record_id'] ?? 0;
     $question_id = intval($_POST['question_id'] ?? 0);
     $student_answer = trim($_POST['student_answer'] ?? '');
+    
+    // 立即释放 Session 锁，允许同一个学生的其他并发请求（防止由于网络延迟导致点击卡顿）
+    session_write_close();
     
     if ($exam_record_id > 0 && $question_id > 0) {
         // 这里可以保存临时答案，但不计算分数
