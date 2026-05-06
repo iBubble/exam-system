@@ -33,10 +33,12 @@ if (!$state['active']) {
 }
 
 // 获取答题详情
-$stmt = $pdo->prepare("SELECT ar.*, q.question_text, q.correct_answer, q.answer_analysis, q.knowledge_point, q.option_a, q.option_b, q.option_c, q.option_d 
+$stmt = $pdo->prepare("SELECT ar.*, q.question_text, q.correct_answer, q.answer_analysis, q.knowledge_point, q.option_a, q.option_b, q.option_c, q.option_d, eq.score as max_score
                        FROM answer_records ar 
                        JOIN questions q ON ar.question_id = q.id 
-                       WHERE ar.exam_record_id = ? ORDER BY ar.id");
+                       LEFT JOIN exam_questions eq ON (ar.exam_record_id = eq.exam_record_id AND ar.question_id = eq.question_id)
+                       WHERE ar.exam_record_id = ? 
+                       ORDER BY eq.order_num ASC, ar.id ASC");
 $stmt->execute([$exam_record_id]);
 $answers = $stmt->fetchAll();
 
@@ -229,7 +231,7 @@ $show_answer = $setting['setting_value'] ?? '1';
                                     ✗ 错误
                                 </span>
                             <?php endif; ?>
-                            <span style="color: #7f8c8d; font-size: 13px;">得分：<?php echo $answer['score']; ?>/<?php echo $answer['score'] > 0 ? $answer['score'] : '?'; ?></span>
+                            <span style="color: #7f8c8d; font-size: 13px;">得分：<?php echo $answer['score']; ?>/<?php echo $answer['max_score'] ?? 10; ?></span>
                         </div>
                     </div>
                     
